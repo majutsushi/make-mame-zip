@@ -1,0 +1,12 @@
+[package]
+name = "make-mame-zip"
+version = "0.1.0"
+authors = ["Jan Larres <jan@majutsushi.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+quick-xml = { version = "0.21.0", features = [ "serialize" ] }
+serde = { version = "1.0.123", features = [ "derive" ] }
+structopt = "0.3.21"
