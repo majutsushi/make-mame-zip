@@ -1,5 +1,7 @@
 use std::fs;
+use std::io::BufReader;
 
+use anyhow::{Context, Result};
 use serde::{Deserialize, Deserializer};
 use structopt::StructOpt;
 
@@ -46,15 +48,16 @@ struct Mame {
     games: Vec<Game>,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let opt = Opt::from_args();
     println!("{:#?}", opt);
 
-    let dat_string =
-        fs::read_to_string(&opt.dat_file).expect(&format!("File {} not found", &opt.dat_file));
-
-    let dat: Mame = quick_xml::de::from_str(&dat_string).unwrap_or_else(|err| panic!("{}", err));
+    let reader = fs::File::open(&opt.dat_file)
+        .with_context(|| format!("Error opening file {}", &opt.dat_file))?;
+    let dat: Mame = quick_xml::de::from_reader(BufReader::new(reader))?;
     println!("{:#?}", dat);
+
+    Ok(())
 }
 
 fn default_dispose() -> bool {
