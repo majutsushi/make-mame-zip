@@ -7,7 +7,8 @@ use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-    dat_file: String,
+    #[structopt(parse(from_os_str))]
+    dat_file: std::path::PathBuf,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -53,7 +54,7 @@ fn main() -> Result<()> {
     println!("{:#?}", opt);
 
     let reader = fs::File::open(&opt.dat_file)
-        .with_context(|| format!("Error opening file {}", &opt.dat_file))?;
+        .with_context(|| format!("Error opening file {}", &opt.dat_file.to_string_lossy()))?;
     let dat: Mame = quick_xml::de::from_reader(BufReader::new(reader))?;
     println!("{:#?}", dat);
 
