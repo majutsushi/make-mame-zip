@@ -1,8 +1,10 @@
-use std::fs;
+mod dat;
+
+use std::fs::File;
 use std::io::BufReader;
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Deserializer};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -11,68 +13,20 @@ struct Opt {
     dat_file: std::path::PathBuf,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-enum Status {
-    BadDump,
-    Good,
-    NoDump,
-}
-impl Default for Status {
-    fn default() -> Self {
-        Status::Good
+fn main() {
+    let opt = Opt::from_args();
+
+    if let Err(e) = run(opt.dat_file) {
+        eprintln!("Error: {:#}", e);
+        std::process::exit(1);
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-struct Rom {
-    name: String,
-    crc: Option<String>,
-    sha1: Option<String>,
-    #[serde(deserialize_with = "de_dispose", default = "default_dispose")]
-    dispose: bool,
-    #[serde(default)]
-    status: Status,
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
-struct Game {
-    name: String,
-    description: String,
-    #[serde(rename = "rom", default)]
-    roms: Vec<Rom>,
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
-struct Mame {
-    #[serde(rename = "game", default)]
-    games: Vec<Game>,
-}
-
-fn main() -> Result<()> {
-    let opt = Opt::from_args();
-    println!("{:#?}", opt);
-
-    let reader = fs::File::open(&opt.dat_file)
-        .with_context(|| format!("Error opening file {}", &opt.dat_file.to_string_lossy()))?;
-    let dat: Mame = quick_xml::de::from_reader(BufReader::new(reader))?;
+fn run(dat_file: PathBuf) -> Result<()> {
+    let reader = File::open(&dat_file)
+        .with_context(|| format!("Error opening file {}", dat_file.to_string_lossy()))?;
+    let dat: dat::Mame = dat::parse(BufReader::new(reader))?;
     println!("{:#?}", dat);
 
     Ok(())
-}
-
-fn default_dispose() -> bool {
-    false
-}
-
-fn de_dispose<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let val = String::deserialize(deserializer)?;
-    match val.as_ref() {
-        "yes" => Ok(true),
-        "no" => Ok(false),
-        _ => Ok(default_dispose()),
-    }
 }
