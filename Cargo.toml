@@ -11,6 +11,7 @@ anyhow = "1.0.38"
 dirs = "4.0.0"
 indicatif = "0.16.2"
 itertools = "0.10.1"
+lazy_static = "1.4.0"
 quick-xml = { version = "0.21.0", features = [ "serialize" ] }
 rusqlite = "0.27.0"
 serde = { version = "1.0.123", features = [ "derive" ] }

@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
 use indicatif::ProgressIterator;
+use lazy_static::lazy_static;
 use structopt::StructOpt;
 use zip::ZipArchive;
 
@@ -27,6 +28,10 @@ enum MakeMameZip {
         dat_file: std::path::PathBuf,
         game_name: String,
     },
+}
+
+lazy_static! {
+    static ref DB_PATH: PathBuf = dirs::data_local_dir().unwrap().join("mame-roms.db");
 }
 
 fn main() {
@@ -50,7 +55,7 @@ fn create_db(romset_dir: PathBuf) -> Result<()> {
 
     println!("Reading directory '{}' ...", romset_dir.to_string_lossy());
 
-    let db = RomDb::create(&dirs::data_local_dir().unwrap().join("mame-roms.db"))?;
+    let db = RomDb::create(&DB_PATH)?;
 
     let read_err = || anyhow!("Error reading directory {}", romset_dir.to_string_lossy());
     let num_files = romset_dir.read_dir().with_context(read_err)?.count();

@@ -287,6 +287,7 @@ dependencies = [
  "dirs",
  "indicatif",
  "itertools",
+ "lazy_static",
  "quick-xml",
  "rusqlite",
  "serde",
