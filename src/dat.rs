@@ -15,6 +15,8 @@ struct Game {
     description: String,
     #[serde(rename = "rom", default)]
     roms: Vec<Rom>,
+    #[serde(rename = "disk", default)]
+    disks: Vec<Disk>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -26,6 +28,15 @@ struct Rom {
     dispose: bool,
     #[serde(default)]
     status: Status,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+struct Disk {
+    name: String,
+    sha1: String,
+    md5: String,
+    region: String,
+    index: u8,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
