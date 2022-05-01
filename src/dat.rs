@@ -22,7 +22,8 @@ struct Game {
 #[derive(Debug, Deserialize, PartialEq)]
 struct Rom {
     name: String,
-    crc: Option<String>,
+    #[serde(deserialize_with = "de_crc", default)]
+    crc: Option<u32>,
     sha1: Option<String>,
     #[serde(deserialize_with = "de_dispose", default = "default_dispose")]
     dispose: bool,
@@ -54,6 +55,20 @@ impl Default for Status {
 
 pub fn parse<T: Read>(reader: T) -> Result<Mame> {
     quick_xml::de::from_reader(BufReader::new(reader)).map_err(|e| e.into())
+}
+
+fn de_crc<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val: Option<String> = Option::deserialize(deserializer)?;
+    if let Some(val) = val {
+        return Ok(Some(
+            u32::from_str_radix(&val, 16).map_err(serde::de::Error::custom)?,
+        ));
+    }
+
+    Ok(None)
 }
 
 fn default_dispose() -> bool {
