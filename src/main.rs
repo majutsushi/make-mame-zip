@@ -4,7 +4,7 @@ mod romdb;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use indicatif::ProgressIterator;
@@ -19,8 +19,8 @@ use crate::{dat::Status, romdb::RomDb};
 enum MakeMameZip {
     #[structopt(name = "create-db")]
     CreateDb {
-        #[structopt(parse(from_os_str))]
-        romset_dir: std::path::PathBuf,
+        #[structopt(parse(from_os_str), required = true)]
+        romset_dirs: Vec<std::path::PathBuf>,
     },
     #[structopt(name = "make-zip")]
     MakeZip {
@@ -36,7 +36,7 @@ lazy_static! {
 
 fn main() {
     if let Err(e) = match MakeMameZip::from_args() {
-        MakeMameZip::CreateDb { romset_dir } => create_db(romset_dir),
+        MakeMameZip::CreateDb { romset_dirs } => create_db(romset_dirs),
         MakeMameZip::MakeZip {
             dat_file,
             game_name,
@@ -47,15 +47,23 @@ fn main() {
     }
 }
 
-fn create_db(romset_dir: PathBuf) -> Result<()> {
+fn create_db(romset_dirs: Vec<PathBuf>) -> Result<()> {
+    let db = RomDb::create(&DB_PATH)?;
+
+    for romset_dir in &romset_dirs {
+        add_romset_dir(&db, romset_dir)?;
+    }
+
+    Ok(())
+}
+
+fn add_romset_dir(db: &RomDb, romset_dir: &Path) -> Result<()> {
     let romset_dir = fs::canonicalize(romset_dir)?;
     if !romset_dir.is_dir() {
         return Err(anyhow!("Not a directory: {}", romset_dir.to_string_lossy()));
     }
 
     println!("Reading directory '{}' ...", romset_dir.to_string_lossy());
-
-    let db = RomDb::create(&DB_PATH)?;
 
     let read_err = || anyhow!("Error reading directory {}", romset_dir.to_string_lossy());
     let num_files = romset_dir.read_dir().with_context(read_err)?.count();
