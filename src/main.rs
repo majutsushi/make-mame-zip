@@ -67,21 +67,32 @@ fn add_romset_dir(db: &RomDb, romset_dir: &Path) -> Result<()> {
 
     let read_err = || anyhow!("Error reading directory {}", romset_dir.to_string_lossy());
     let num_files = romset_dir.read_dir().with_context(read_err)?.count();
-    for entry in romset_dir
+    'outer: for entry in romset_dir
         .read_dir()
         .with_context(read_err)?
         .progress_count(num_files as u64)
     {
         let entry = entry?;
         let reader = File::open(entry.path())
-            .with_context(|| anyhow!("Error reading file {}", entry.path().to_string_lossy()))?;
+            .with_context(|| anyhow!("Error reading file '{}'", entry.path().to_string_lossy()))?;
         match ZipArchive::new(BufReader::new(reader)) {
             Ok(mut zip) => {
                 for i in 0..zip.len() {
-                    let zipfile = zip.by_index(i)?;
-                    let file_name = zipfile.name();
-                    let crc32 = zipfile.crc32();
-                    db.add_rom(file_name, crc32, &entry.path())?;
+                    match zip.by_index(i) {
+                        Ok(zipfile) => {
+                            let file_name = zipfile.name();
+                            let crc32 = zipfile.crc32();
+                            db.add_rom(file_name, crc32, &entry.path())?;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Error reading ZIP file '{}': {}",
+                                entry.path().to_string_lossy(),
+                                e
+                            );
+                            continue 'outer;
+                        }
+                    };
                 }
             }
             Err(_) => {
