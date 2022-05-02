@@ -3,16 +3,16 @@ mod romdb;
 
 use std::fs;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
 use indicatif::ProgressIterator;
 use lazy_static::lazy_static;
 use structopt::StructOpt;
-use zip::ZipArchive;
+use zip::{ZipArchive, ZipWriter};
 
-use crate::romdb::RomDb;
+use crate::{dat::Status, romdb::RomDb};
 
 #[derive(Debug, StructOpt)]
 #[structopt(about = "make a MAME game ZIP from a DAT file and romset")]
@@ -88,11 +88,40 @@ fn create_db(romset_dir: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn make_zip(dat_file: PathBuf, _game_name: String) -> Result<()> {
+fn make_zip(dat_file: PathBuf, game_name: String) -> Result<()> {
     let reader = File::open(&dat_file)
         .with_context(|| format!("Error opening file {}", dat_file.to_string_lossy()))?;
     let dat: dat::Mame = dat::parse(BufReader::new(reader))?;
-    println!("{:#?}", dat);
+
+    let game = match dat.games.iter().find(|&game| game.name == game_name) {
+        Some(game) => game,
+        None => return Err(anyhow!("Game not found in DAT file: {}", game_name)),
+    };
+    let bad_roms = game
+        .roms
+        .iter()
+        .filter(|rom| rom.status != Status::Good)
+        .map(|rom| rom.name.clone())
+        .collect::<Vec<_>>();
+    if !bad_roms.is_empty() {
+        return Err(anyhow!("No good dump for ROMs: {}", bad_roms.join(", ")));
+    }
+
+    let db = RomDb::open(&DB_PATH)?;
+    let file_out = File::create(format!("{}.zip", game_name))?;
+    let mut zip_out = ZipWriter::new(BufWriter::new(file_out));
+
+    for rom in &game.roms {
+        // Unwrapping the CRC is safe since it will always be present for good dumps
+        let rom_info = db.find_rom(&rom.name, rom.crc.unwrap())?;
+
+        let reader = File::open(&rom_info.path)
+            .with_context(|| anyhow!("Error reading file {}", rom_info.path.to_string_lossy()))?;
+        let mut zip_in = ZipArchive::new(BufReader::new(reader))?;
+
+        let file = zip_in.by_name(&rom_info.zipname)?;
+        zip_out.raw_copy_file_rename(file, rom_info.name)?;
+    }
 
     Ok(())
 }

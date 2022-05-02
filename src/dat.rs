@@ -6,43 +6,43 @@ use serde::{Deserialize, Deserializer};
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct Mame {
     #[serde(rename = "game", default)]
-    games: Vec<Game>,
+    pub games: Vec<Game>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct Game {
-    name: String,
-    description: String,
+pub struct Game {
+    pub name: String,
+    pub description: String,
     #[serde(rename = "rom", default)]
-    roms: Vec<Rom>,
+    pub roms: Vec<Rom>,
     #[serde(rename = "disk", default)]
-    disks: Vec<Disk>,
+    pub disks: Vec<Disk>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct Rom {
-    name: String,
+pub struct Rom {
+    pub name: String,
     #[serde(deserialize_with = "de_crc", default)]
-    crc: Option<u32>,
-    sha1: Option<String>,
+    pub crc: Option<u32>,
+    pub sha1: Option<String>,
     #[serde(deserialize_with = "de_dispose", default = "default_dispose")]
-    dispose: bool,
+    pub dispose: bool,
     #[serde(default)]
-    status: Status,
+    pub status: Status,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct Disk {
-    name: String,
-    sha1: String,
-    md5: String,
-    region: String,
-    index: u8,
+pub struct Disk {
+    pub name: String,
+    pub sha1: String,
+    pub md5: String,
+    pub region: String,
+    pub index: u8,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-enum Status {
+pub enum Status {
     BadDump,
     Good,
     NoDump,
