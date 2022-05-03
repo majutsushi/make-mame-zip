@@ -15,7 +15,6 @@ pub struct RomDb {
 #[derive(Debug)]
 pub struct RomInfo {
     pub name: String,
-    pub zipname: String,
     pub crc32: u32,
     pub path: PathBuf,
 }
@@ -30,7 +29,6 @@ impl RomDb {
         conn.execute(
             "CREATE TABLE roms (
                     name      TEXT NOT NULL,
-                    zipname   TEXT NOT NULL,
                     crc32     INTEGER NOT NULL,
                     path      BLOB NOT NULL
                 )",
@@ -45,36 +43,31 @@ impl RomDb {
         Ok(RomDb { conn })
     }
 
-    pub fn add_rom(&self, zipname: &str, crc32: u32, path: &Path) -> Result<()> {
-        let name = match zipname.rsplit_once('/') {
-            Some((_, name)) => name,
-            None => zipname,
-        };
+    pub fn add_rom(&self, name: &str, crc32: u32, path: &Path) -> Result<()> {
         self.conn.execute(
-            "INSERT INTO roms (name, zipname, crc32, path) VALUES (?1, ?2, ?3, ?4)",
-            params![name, zipname, crc32, path.as_os_str().as_bytes()],
+            "INSERT INTO roms (name, crc32, path) VALUES (?1, ?2, ?3)",
+            params![name, crc32, path.as_os_str().as_bytes()],
         )?;
 
         Ok(())
     }
 
-    pub fn find_rom(&self, name: &str, crc32: u32) -> Result<RomInfo> {
+    pub fn find_rom(&self, crc32: u32) -> Result<RomInfo> {
         let mut stmt = self
             .conn
-            .prepare("SELECT name, zipname, crc32, path FROM roms WHERE name = ? AND crc32 = ?")?;
-        let rominfo_iter = stmt.query_map(params![name, crc32], |row| {
+            .prepare("SELECT name, crc32, path FROM roms WHERE crc32 = ?")?;
+        let rominfo_iter = stmt.query_map([crc32], |row| {
             Ok(RomInfo {
                 name: row.get(0)?,
-                zipname: row.get(1)?,
-                crc32: row.get(2)?,
-                path: PathBuf::from(OsStr::from_bytes(row.get_ref_unwrap(3).as_bytes()?)),
+                crc32: row.get(1)?,
+                path: PathBuf::from(OsStr::from_bytes(row.get_ref_unwrap(2).as_bytes()?)),
             })
         })?;
 
         // Always return the first result, if there are multiple they should be identical
         return match rominfo_iter.take(1).next() {
             Some(rominfo) => rominfo.map_err(|err| err.into()),
-            None => Err(anyhow!("No ROM found matching name {}", name)),
+            None => Err(anyhow!("No ROM found matching CRC {:#x}", crc32)),
         };
     }
 }

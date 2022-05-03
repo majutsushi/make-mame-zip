@@ -130,16 +130,47 @@ fn make_zip(dat_file: PathBuf, game_name: String) -> Result<()> {
     let file_out = File::create(format!("{}.zip", game_name))?;
     let mut zip_out = ZipWriter::new(BufWriter::new(file_out));
 
-    for rom in &game.roms {
+    for dat_rom in &game.roms {
         // Unwrapping the CRC is safe since it will always be present for good dumps
-        let rom_info = db.find_rom(&rom.name, rom.crc.unwrap())?;
+        let rom_info = db.find_rom(dat_rom.crc.unwrap())?;
 
         let reader = File::open(&rom_info.path)
             .with_context(|| anyhow!("Error reading file {}", rom_info.path.to_string_lossy()))?;
         let mut zip_in = ZipArchive::new(BufReader::new(reader))?;
 
-        let file = zip_in.by_name(&rom_info.zipname)?;
-        zip_out.raw_copy_file_rename(file, rom_info.name)?;
+        // We need to find the correct ROM by CRC as the name may be different
+        let mut filename = None;
+        for i in 0..zip_in.len() {
+            match zip_in.by_index(i) {
+                Ok(zipfile) => {
+                    if zipfile.crc32() == rom_info.crc32 {
+                        filename = Some(zipfile.name().to_owned());
+                        break;
+                    }
+                }
+                Err(e) => {
+                    return Err(anyhow!(
+                        "Error reading ZIP file '{}': {}",
+                        rom_info.path.to_string_lossy(),
+                        e
+                    ));
+                }
+            };
+        }
+
+        match filename {
+            Some(filename) => {
+                let file = zip_in.by_name(&filename)?;
+                zip_out.raw_copy_file_rename(file, &dat_rom.name)?;
+            }
+            None => {
+                return Err(anyhow!(
+                    "ROM with CRC {} not found in ZIP file '{}'",
+                    rom_info.crc32,
+                    rom_info.path.to_string_lossy()
+                ))
+            }
+        }
     }
 
     Ok(())
