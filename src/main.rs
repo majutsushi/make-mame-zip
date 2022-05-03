@@ -1,6 +1,7 @@
 mod dat;
 mod romdb;
 
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -8,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use indicatif::ProgressIterator;
+use itertools::{Either, Itertools};
 use lazy_static::lazy_static;
 use structopt::StructOpt;
 use zip::{ZipArchive, ZipWriter};
@@ -127,13 +129,29 @@ fn make_zip(dat_file: PathBuf, game_name: String) -> Result<()> {
     }
 
     let db = RomDb::open(&DB_PATH)?;
+
+    let (rom_infos, not_found): (HashMap<_, _>, Vec<_>) = game
+        .roms
+        .iter()
+        // Unwrapping the CRC is safe since it will always be present for good dumps
+        .map(|dat_rom| {
+            db.find_rom(dat_rom.crc.unwrap())
+                .map(|rom_info| (dat_rom.name.to_owned(), rom_info))
+        })
+        .partition_map(|r| match r {
+            Ok(rom_tuple) => Either::Left(rom_tuple),
+            Err(e) => Either::Right(e),
+        });
+    if !not_found.is_empty() {
+        return Err(anyhow!(
+            "Error looking up ROMs:\n{}",
+            not_found.iter().join("\n")
+        ));
+    }
+
     let file_out = File::create(format!("{}.zip", game_name))?;
     let mut zip_out = ZipWriter::new(BufWriter::new(file_out));
-
-    for dat_rom in &game.roms {
-        // Unwrapping the CRC is safe since it will always be present for good dumps
-        let rom_info = db.find_rom(dat_rom.crc.unwrap())?;
-
+    for (rom_name, rom_info) in rom_infos {
         let reader = File::open(&rom_info.path)
             .with_context(|| anyhow!("Error reading file {}", rom_info.path.to_string_lossy()))?;
         let mut zip_in = ZipArchive::new(BufReader::new(reader))?;
@@ -161,7 +179,7 @@ fn make_zip(dat_file: PathBuf, game_name: String) -> Result<()> {
         match filename {
             Some(filename) => {
                 let file = zip_in.by_name(&filename)?;
-                zip_out.raw_copy_file_rename(file, &dat_rom.name)?;
+                zip_out.raw_copy_file_rename(file, &rom_name)?;
             }
             None => {
                 return Err(anyhow!(
