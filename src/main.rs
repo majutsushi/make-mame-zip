@@ -28,7 +28,8 @@ enum MakeMameZip {
     MakeZip {
         #[structopt(parse(from_os_str))]
         dat_file: std::path::PathBuf,
-        game_name: String,
+        #[structopt(required = true)]
+        game_name: Vec<String>,
     },
 }
 
@@ -42,7 +43,7 @@ fn main() {
         MakeMameZip::MakeZip {
             dat_file,
             game_name,
-        } => make_zip(dat_file, game_name),
+        } => make_zips(dat_file, game_name),
     } {
         eprintln!("Error: {:#}", e);
         std::process::exit(1);
@@ -109,7 +110,15 @@ fn add_romset_dir(db: &RomDb, romset_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn make_zip(dat_file: PathBuf, game_name: String) -> Result<()> {
+fn make_zips(dat_file: PathBuf, game_names: Vec<String>) -> Result<()> {
+    game_names
+        .into_iter()
+        .try_for_each(|game| make_zip(&dat_file, game))
+}
+
+fn make_zip(dat_file: &PathBuf, game_name: String) -> Result<()> {
+    println!("Assembling game {}", game_name);
+
     let reader = File::open(&dat_file)
         .with_context(|| format!("Error opening file {}", dat_file.to_string_lossy()))?;
     let dat: dat::Mame = dat::parse(BufReader::new(reader))?;
