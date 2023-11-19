@@ -119,7 +119,7 @@ fn make_zips(dat_file: PathBuf, game_names: Vec<String>) -> Result<()> {
 fn make_zip(dat_file: &PathBuf, game_name: String) -> Result<()> {
     println!("Assembling game {}", game_name);
 
-    let reader = File::open(&dat_file)
+    let reader = File::open(dat_file)
         .with_context(|| format!("Error opening file {}", dat_file.to_string_lossy()))?;
     let dat: dat::Mame = dat::parse(BufReader::new(reader))?;
 

@@ -64,7 +64,9 @@ impl RomDb {
             })
         })?;
 
-        // Always return the first result, if there are multiple they should be identical
+        // Always return the first result, if there are multiple they should be identical.
+        // Disable clippy lint since an implicit return drops 'stmt' too late
+        #[allow(clippy::needless_return)]
         return match rominfo_iter.take(1).next() {
             Some(rominfo) => rominfo.map_err(|err| err.into()),
             None => Err(anyhow!("No ROM found matching CRC {:#x}", crc32)),

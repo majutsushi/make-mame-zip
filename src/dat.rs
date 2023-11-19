@@ -40,17 +40,13 @@ pub struct Disk {
     pub index: u8,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {
     BadDump,
+    #[default]
     Good,
     NoDump,
-}
-impl Default for Status {
-    fn default() -> Self {
-        Status::Good
-    }
 }
 
 pub fn parse<T: Read>(reader: T) -> Result<Mame> {
