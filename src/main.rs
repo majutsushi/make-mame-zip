@@ -17,13 +17,15 @@ use zip::{ZipArchive, ZipWriter};
 use crate::{dat::Status, romdb::RomDb};
 
 #[derive(Debug, StructOpt)]
-#[structopt(about = "make a MAME game ZIP from a DAT file and romset")]
+#[structopt(about = "make a MAME game ZIP from a DAT file and romsets")]
 enum MakeMameZip {
+    /// Create database from a romset
     #[structopt(name = "create-db")]
     CreateDb {
         #[structopt(parse(from_os_str), required = true)]
         romset_dirs: Vec<std::path::PathBuf>,
     },
+    /// Make a ZIP from a DAT file and database ROM info
     #[structopt(name = "make-zip")]
     MakeZip {
         #[structopt(parse(from_os_str))]
