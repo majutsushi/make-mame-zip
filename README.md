@@ -53,3 +53,5 @@ Example usage:
 ```
 $ make-mame-zip make-zip /path/to/mame.xml pacman
 ```
+
+This will create a file `pacman.zip` that works with your MAME version.
